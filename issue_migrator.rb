@@ -69,22 +69,33 @@ end
 
 puts
 
-if options[:action] == :list_responsibles
+if options[:map]
   responsibles = []
   issues.each do |id, issue|
     if issue["responsible"]
       responsibles << issue["responsible"]["username"]
     end
   end
-  p responsibles.uniq!
+  p responsibles.uniq! if options[:action] == :list_responsibles
+
+  assignees = parse_response(client.get("https://api.github.com/repos/#{options[:github_repo]}/assignees")).map { |x| x["login"] }
+  fail_assignees = false
 
   if options[:map]
     responsibles.each do |resp|
-      puts "User #{resp} is not in the mapping file" unless options[:map][resp]
+      if assignee = options[:map][resp]
+        unless assignees.include?(assignee)
+          puts "User #{resp} -> #{assignee} is not an available assignee for the repository #{options[:github_repo]}"
+          fail_assignees = true
+        end
+      else
+        puts "User #{resp} is not in the mapping file"
+      end
     end
   end
 
-  exit 0
+  exit 1 if fail_assignees
+  exit 0 if options[:action] == :list_responsibles
 end
 
 print "Loading milestones..."
